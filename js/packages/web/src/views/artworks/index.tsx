@@ -7,6 +7,10 @@ import { useCreatorArts, useUserArts } from '../../hooks';
 import { useMeta } from '../../contexts';
 import { CardLoader } from '../../components/MyLoader';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { ArtType } from '../../types';
+import { useArt } from '../../hooks';
+import { redeemFullRightsTransferBid } from '@oyster/common';
+//import { useParams } from 'react-router-dom';
 
 const { TabPane } = Tabs;
 
@@ -17,6 +21,14 @@ export enum ArtworkViewState {
   Owned = '1',
   Created = '2',
 }
+
+const prints = [
+  /*prints*/ 'AkNQXGbSLPv5t6Y1VHaGTZJMX8cFzqoLE1tQLjykJqNb', //scimitar
+  '7RSkMv1pL9twZWoGMVaT2w45NcvipAQvFYprNWM1Rosq', //eyeglass1
+  '4mN9jjumAxJCp3nrzw6yo1E59GTmKmjkWRED6G3wdJCZ', //eyeglass2
+  '33P1SEiwerJoNXiby9GL56KBVpWPNsokQdZicfetUbZ3', //headaxe
+  'Cb4nUaJpX3xDeYGJ3QtkrjEWLpkvsaR3LSanWYMopoA1', //rod
+];
 
 export const ArtworksView = () => {
   const { connected, publicKey } = useWallet();
@@ -55,17 +67,20 @@ export const ArtworksView = () => {
       {!isLoading
         ? items.map((m, idx) => {
             const id = m.pubkey;
-            return (
-              <Link to={`/art/${id}`} key={idx}>
-                <ArtCard
-                  key={id}
-                  pubkey={m.pubkey}
-                  preview={false}
-                  height={250}
-                  width={250}
-                />
-              </Link>
-            );
+            //exclude all prints from display
+            if (!prints.includes(m.pubkey)) {
+              return (
+                <Link to={`/art/${id}`} key={idx}>
+                  <ArtCard
+                    key={id}
+                    pubkey={m.pubkey}
+                    preview={false}
+                    height={250}
+                    width={250}
+                  />
+                </Link>
+              );
+            }
           })
         : [...Array(10)].map((_, idx) => <CardLoader key={idx} />)}
     </Masonry>
@@ -73,7 +88,9 @@ export const ArtworksView = () => {
 
   return (
     <Layout style={{ margin: 0, marginTop: 30 }}>
-      <Content style={{ display: 'flex', flexWrap: 'wrap', objectFit: 'contain' }}>
+      <Content
+        style={{ display: 'flex', flexWrap: 'wrap', objectFit: 'contain' }}
+      >
         <Col style={{ width: '100%', marginTop: 10 }}>
           <Row>
             <Tabs
