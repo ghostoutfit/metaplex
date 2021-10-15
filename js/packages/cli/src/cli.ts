@@ -387,7 +387,8 @@ programCommand('mint_one_token')
     const splTokenAccountKey = splTokenAccount
       ? new PublicKey(splTokenAccount)
       : undefined;
-    const tx = await mint(keypair, env, configAddress, splTokenAccountKey);
+    const tx = await mint(keypair, env, configAddress);
+    //, splTokenAccountKey  extra argument?
 
     log.info('Done', tx);
   });
@@ -462,6 +463,7 @@ programCommand('sign_candy_machine_metadata')
       walletKeyPair,
       candyAddress,
       batchSizeParsed,
+      false, //missing argument??
     );
   });
 

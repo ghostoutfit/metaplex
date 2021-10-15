@@ -1,7 +1,5 @@
-import { sleep, useLocalStorageState } from '../utils/utils';
 import {
   Keypair,
-  clusterApiUrl,
   Commitment,
   Connection,
   RpcResponseAndContext,
@@ -13,165 +11,14 @@ import {
   Blockhash,
   FeeCalculator,
 } from '@solana/web3.js';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { notify } from '../utils/notifications';
-import { ExplorerLink } from '../components/ExplorerLink';
+
 import {
-  TokenInfo,
-  TokenListProvider,
-  ENV as ChainId,
-} from '@solana/spl-token-registry';
-import { WalletSigner } from './wallet';
-import { WalletNotConnectedError } from '@solana/wallet-adapter-base';
+  WalletNotConnectedError,
+} from '@solana/wallet-adapter-base';
 
 interface BlockhashAndFeeCalculator {
   blockhash: Blockhash;
   feeCalculator: FeeCalculator;
-}
-
-export type ENV =
-  | 'mainnet-beta (Serum)'
-  | 'mainnet-beta (Solana)'
-  | 'mainnet-beta'
-  | 'testnet'
-  | 'devnet'
-  | 'localnet'
-  | 'lending';
-
-export const ENDPOINTS = [
-  {
-    name: 'mainnet-beta (Serum)' as ENV,
-    endpoint: 'https://solana-api.projectserum.com/',
-    ChainId: ChainId.MainnetBeta,
-  },
-  {
-    name: 'mainnet-beta (Solana)' as ENV,
-    endpoint: 'https://api.mainnet-beta.solana.com',
-    ChainId: ChainId.MainnetBeta,
-  },
-  {
-    name: 'mainnet-beta' as ENV,
-    endpoint: 'https://api.metaplex.solana.com/',
-    ChainId: ChainId.MainnetBeta,
-  },
-  {
-    name: 'testnet' as ENV,
-    endpoint: clusterApiUrl('testnet'),
-    ChainId: ChainId.Testnet,
-  },
-  {
-    name: 'devnet' as ENV,
-    endpoint: clusterApiUrl('devnet'),
-    ChainId: ChainId.Devnet,
-  },
-];
-
-const DEFAULT = ENDPOINTS[0].endpoint;
-
-interface ConnectionConfig {
-  connection: Connection;
-  endpoint: string;
-  env: ENV;
-  setEndpoint: (val: string) => void;
-  tokens: TokenInfo[];
-  tokenMap: Map<string, TokenInfo>;
-}
-
-const ConnectionContext = React.createContext<ConnectionConfig>({
-  endpoint: DEFAULT,
-  setEndpoint: () => {},
-  connection: new Connection(DEFAULT, 'recent'),
-  env: ENDPOINTS[0].name,
-  tokens: [],
-  tokenMap: new Map<string, TokenInfo>(),
-});
-
-export function ConnectionProvider({ children = undefined as any }) {
-  const [endpoint, setEndpoint] = useLocalStorageState(
-    'connectionEndpoint',
-    ENDPOINTS[0].endpoint,
-  );
-
-  const connection = useMemo(
-    () => new Connection(endpoint, 'recent'),
-    [endpoint],
-  );
-
-  const env =
-    ENDPOINTS.find(end => end.endpoint === endpoint)?.name || ENDPOINTS[0].name;
-
-  const [tokens, setTokens] = useState<TokenInfo[]>([]);
-  const [tokenMap, setTokenMap] = useState<Map<string, TokenInfo>>(new Map());
-  useEffect(() => {
-    // fetch token files
-    new TokenListProvider().resolve().then(container => {
-      const list = container
-        .excludeByTag('nft')
-        .filterByChainId(
-          ENDPOINTS.find(end => end.endpoint === endpoint)?.ChainId ||
-            ChainId.MainnetBeta,
-        )
-        .getList();
-
-      const knownMints = [...list].reduce((map, item) => {
-        map.set(item.address, item);
-        return map;
-      }, new Map<string, TokenInfo>());
-
-      setTokenMap(knownMints);
-      setTokens(list);
-    });
-  }, [env]);
-
-  // The websocket library solana/web3.js uses closes its websocket connection when the subscription list
-  // is empty after opening its first time, preventing subsequent subscriptions from receiving responses.
-  // This is a hack to prevent the list from every getting empty
-  useEffect(() => {
-    const id = connection.onAccountChange(
-      Keypair.generate().publicKey,
-      () => {},
-    );
-    return () => {
-      connection.removeAccountChangeListener(id);
-    };
-  }, [connection]);
-
-  useEffect(() => {
-    const id = connection.onSlotChange(() => null);
-    return () => {
-      connection.removeSlotChangeListener(id);
-    };
-  }, [connection]);
-
-  return (
-    <ConnectionContext.Provider
-      value={{
-        endpoint,
-        setEndpoint,
-        connection,
-        tokens,
-        tokenMap,
-        env,
-      }}
-    >
-      {children}
-    </ConnectionContext.Provider>
-  );
-}
-
-export function useConnection() {
-  return useContext(ConnectionContext).connection as Connection;
-}
-
-export function useConnectionConfig() {
-  const context = useContext(ConnectionContext);
-  return {
-    endpoint: context.endpoint,
-    setEndpoint: context.setEndpoint,
-    env: context.env,
-    tokens: context.tokens,
-    tokenMap: context.tokenMap,
-  };
 }
 
 export const getErrorForTransaction = async (
@@ -212,7 +59,7 @@ export enum SequenceType {
 
 export async function sendTransactionsWithManualRetry(
   connection: Connection,
-  wallet: WalletSigner,
+  wallet: any,
   instructions: TransactionInstruction[][],
   signers: Keypair[][],
 ) {
@@ -274,7 +121,7 @@ export async function sendTransactionsWithManualRetry(
 
 export const sendTransactions = async (
   connection: Connection,
-  wallet: WalletSigner,
+  wallet: any,
   instructionSet: TransactionInstruction[][],
   signersSet: Keypair[][],
   sequenceType: SequenceType = SequenceType.Parallel,
@@ -369,7 +216,7 @@ export const sendTransactions = async (
 
 export const sendTransaction = async (
   connection: Connection,
-  wallet: WalletSigner,
+  wallet: any,
   instructions: TransactionInstruction[],
   signers: Keypair[],
   awaitConfirmation = true,
@@ -425,22 +272,9 @@ export const sendTransaction = async (
 
     if (confirmation?.err) {
       const errors = await getErrorForTransaction(connection, txid);
-      notify({
-        message: 'Transaction failed...',
-        description: (
-          <>
-            {errors.map(err => (
-              <div>{err}</div>
-            ))}
-            <ExplorerLink address={txid} type="transaction" />
-          </>
-        ),
-        type: 'error',
-      });
 
-      throw new Error(
-        `Raw transaction ${txid} failed (${JSON.stringify(status)})`,
-      );
+      console.log(errors);
+      throw new Error(`Raw transaction ${txid} failed`);
     }
   }
 
@@ -449,7 +283,7 @@ export const sendTransaction = async (
 
 export const sendTransactionWithRetry = async (
   connection: Connection,
-  wallet: WalletSigner,
+  wallet: any,
   instructions: TransactionInstruction[],
   signers: Keypair[],
   commitment: Commitment = 'singleGossip',
@@ -551,7 +385,7 @@ export async function sendSignedTransaction({
     }
 
     slot = confirmation?.slot || 0;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Timeout Error caught', err);
     if (err.timeout) {
       throw new Error('Timed out awaiting confirmation on transaction');
@@ -696,4 +530,7 @@ async function awaitTransactionSignatureConfirmation(
   done = true;
   console.log('Returning status', status);
   return status;
+}
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
