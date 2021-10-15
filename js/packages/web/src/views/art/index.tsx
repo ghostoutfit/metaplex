@@ -102,11 +102,13 @@ export const ArtView = () => {
   const loreUserString = loreUser.replace(/\s+/g, '');
 
   async function submitLore(itemLore: any) {
-    const permissions = ['ACCESS_ADDRESS', 'SIGN_TRANSACTION', 'SIGNATURE'];
-    await window.arweaveWallet.connect(permissions, {
-      name: 'ItemLore',
-      logo: 'https://magicitems.org/img/ghosty.gif',
-    });
+    await window.arweaveWallet.connect(
+      [`ACCESS_ADDRESS`, `SIGN_TRANSACTION`, `SIGNATURE`],
+      {
+        name: 'ItemLore',
+        logo: 'https://magicitems.org/img/ghosty.gif',
+      },
+    );
 
     let key = {
       kty: 'RSA',
